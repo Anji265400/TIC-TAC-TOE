@@ -1,11 +1,8 @@
 name: Build,Analyze,scan
-
-on:
+on: 
   push:
     branches:
-      - main
-
-
+      - main 
 jobs:
   build-analyze-scan:
     name: Build
@@ -14,19 +11,49 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis 
-  
-      - name: Deploy to container
-        run: | 
-          docker stop game
-          docker rm game
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Build and analyze with SonarQube
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          
+      - name: npm install dependency
+        run: npm install
         
+      - name: Trivy file scan
+        run: trivy fs . > trivyfs.txt
+        
+      - name: Docker build and push
+        run: |
+          docker build -t tic-tac-toe .
+          docker tag tic-tac-toe anji265400/tic-tac-toe:latest
+          docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker push anji265400/tic-tac-toe:latest
+        env:
+          DOCKER_CLI_ACI: 1
+        
+      - name: image scan
+        run: trivy image  anji265400/tic-tac-toe:latest > trivyimage.txt  
+  deploye: 
+    needs: build-analyze-scan
+    runs-on: [self-hosted]
+    steps:
+      - name: Docker pull image
+        run: docker pull anji265400/tic-tac-toe:latest
+
+      - name: image scan
+        run: trivy image anji265400/tic-tac-toe:latest > trivyimagedeploy.txt
+
+      - name: deploye to container
+        run: docker run -d --name game -p 3000:3000 anji265400/tic-tac-toe:latest
+
       - name: Update kubeconfig
         run: aws eks --region us-east-1 update-kubeconfig --name EKS_CLOUD
 
       - name: Deploy to kubernetes
-        run: kubectl delete -f deployment-service.yml
-  
+        run: kubectl apply -f deployment-service.yml
+
       - name: Send a Slack Notification
         if: always()
         uses: act10ns/slack@v1
