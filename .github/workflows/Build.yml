@@ -34,5 +34,16 @@ jobs:
           DOCKER_CLI_ACI: 1
         
       - name: image scan
-        run: trivy image  anji265400/tic-tac-toe:latest > trivyimage.txt
-      
+        run: trivy image  anji265400/tic-tac-toe:latest > trivyimage.txt  
+  deploye: 
+    needs: build-analyze-scan
+    runs-on: [self-hosted]
+    steps:
+      - name: Docker pull image
+        run: docker pull anji265400/tic-tac-toe:latest
+
+      - name: image scan
+        run: trivy image anji265400/tic-tac-toe:latest > trivyimagedeploy.txt
+
+      - name: deploye to container
+        run: docker run -d --name game -p 3000:3000 anji265400/tic-tac-toe:latest
