@@ -46,7 +46,7 @@ jobs:
         run: trivy image anji265400/tic-tac-toe:latest > trivyimagedeploy.txt
 
       - name: deploye to container
-        run: docker run -d --name game -p 3000:3000 anji265400/tic-tac-toe:latest
+        run: docker run -d --name game1 -p 3000:3000 anji265400/tic-tac-toe:latest
 
       - name: Update kubeconfig
         run: aws eks --region us-east-1 update-kubeconfig --name EKS_CLOUD
